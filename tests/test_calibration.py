@@ -6,8 +6,8 @@ from dataexcept import DataValidationError
 
 from graph_fraud.calibration import PlattCalibrator, brier_score, reliability_table
 from graph_fraud.config import LABEL_COL, TIME_COL
-from graph_fraud.models import fit_model, make_logistic_model, predict_risk
 from graph_fraud.features import feature_columns, make_xy
+from graph_fraud.models import fit_model, make_logistic_model, predict_risk
 from graph_fraud.validation import temporal_train_calibration_test_split
 
 
