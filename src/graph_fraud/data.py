@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -61,7 +62,7 @@ def _resolve(data_dir: Path, name: str) -> Path:
     return path
 
 
-def _read_csv(path: Path, **kwargs: object) -> pd.DataFrame:
+def _read_csv(path: Path, **kwargs: Any) -> pd.DataFrame:
     """Read a CSV and normalize pandas/parser failures as DataExcept errors."""
     try:
         return pd.read_csv(path, **kwargs)
