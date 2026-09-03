@@ -49,7 +49,11 @@ class PlattCalibrator:
             raise RuntimeError("Calibrator must be fitted before transform")
         x = np.asarray(y_score, dtype=float).reshape(-1, 1)
         probabilities = self._model.predict_proba(x)[:, 1]
-        return pd.Series(probabilities, index=y_score.index, name="calibrated_risk_score")
+        return pd.Series(
+            probabilities,
+            index=y_score.index,
+            name="calibrated_risk_score",
+        )
 
 
 def brier_score(y_true: pd.Series, y_score: pd.Series) -> float:
@@ -98,3 +102,21 @@ def reliability_table(
         )
         .reset_index()
     )
+
+
+def expected_calibration_error(
+    y_true: pd.Series,
+    y_score: pd.Series,
+    *,
+    n_bins: int = 10,
+) -> float:
+    """Return the sample-weighted absolute calibration gap across bins."""
+    table = reliability_table(y_true, y_score, n_bins=n_bins)
+    total = int(table["n"].sum())
+    if total == 0:
+        raise ValueError("Calibration table cannot be empty")
+    gap = (
+        table["mean_predicted_risk"] - table["observed_illicit_rate"]
+    ).abs()
+    weights = table["n"].astype(float) / float(total)
+    return float((gap * weights).sum())
