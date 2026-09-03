@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from dataexcept import DataLeakageError, DataValidationError
 
 from graph_fraud.config import LABEL_COL, TIME_COL
 from graph_fraud.data import require_columns
@@ -14,23 +15,55 @@ def temporal_train_test_split(
     test_time_steps: int = 3,
 ) -> tuple[pd.DataFrame, pd.DataFrame, int]:
     """Split labelled observations by time step."""
+    if test_time_steps <= 0:
+        raise ValueError("test_time_steps must be positive")
+
     require_columns(frame, [TIME_COL, LABEL_COL], frame_name="frame")
     labelled = frame[frame[LABEL_COL].notna()].copy()
     steps = sorted(labelled[TIME_COL].astype(int).unique().tolist())
     if len(steps) <= test_time_steps:
-        raise ValueError("Not enough time steps for temporal split")
+        raise DataValidationError(
+            field=TIME_COL,
+            value=len(steps),
+            message=(
+                "Not enough labelled time steps for temporal split: "
+                f"found {len(steps)}, need more than {test_time_steps}."
+            ),
+        )
     cutoff = steps[-test_time_steps - 1]
     train = labelled[labelled[TIME_COL] <= cutoff].copy()
     test = labelled[labelled[TIME_COL] > cutoff].copy()
     if train.empty or test.empty:
-        raise ValueError("Temporal split produced empty train or test")
+        raise DataValidationError(
+            field=TIME_COL,
+            value={"train_rows": len(train), "test_rows": len(test)},
+            message="Temporal split produced an empty train or test partition.",
+        )
     return train, test, int(cutoff)
 
 
 def assert_no_temporal_leakage(train: pd.DataFrame, test: pd.DataFrame) -> None:
     """Ensure all train observations are earlier than test observations."""
-    if int(train[TIME_COL].max()) >= int(test[TIME_COL].min()):
-        raise ValueError("Temporal leakage detected")
+    require_columns(train, [TIME_COL], frame_name="train")
+    require_columns(test, [TIME_COL], frame_name="test")
+    if train.empty or test.empty:
+        raise DataValidationError(
+            field=TIME_COL,
+            value={"train_rows": len(train), "test_rows": len(test)},
+            message="Temporal leakage validation requires non-empty train and test data.",
+        )
+
+    train_max = int(train[TIME_COL].max())
+    test_min = int(test[TIME_COL].min())
+    if train_max >= test_min:
+        raise DataLeakageError(
+            feature=TIME_COL,
+            stage="temporal validation",
+            message=(
+                "Temporal leakage detected: "
+                f"max(train.{TIME_COL})={train_max} >= min(test.{TIME_COL})={test_min}."
+            ),
+        )
 
 
 def rolling_origin_splits(
@@ -40,16 +73,29 @@ def rolling_origin_splits(
     test_window: int = 1,
 ) -> list[tuple[pd.DataFrame, pd.DataFrame, int]]:
     """Create rolling-origin temporal validation splits."""
+    if min_train_steps <= 0:
+        raise ValueError("min_train_steps must be positive")
+    if test_window <= 0:
+        raise ValueError("test_window must be positive")
+
     require_columns(frame, [TIME_COL, LABEL_COL], frame_name="frame")
     labelled = frame[frame[LABEL_COL].notna()].copy()
     steps = sorted(labelled[TIME_COL].astype(int).unique().tolist())
-    out = []
+    out: list[tuple[pd.DataFrame, pd.DataFrame, int]] = []
     for i in range(min_train_steps, len(steps) - test_window + 1):
         cutoff = steps[i - 1]
         train = labelled[labelled[TIME_COL] <= cutoff].copy()
         test = labelled[labelled[TIME_COL].isin(steps[i : i + test_window])].copy()
         if not train.empty and not test.empty:
+            assert_no_temporal_leakage(train, test)
             out.append((train, test, int(cutoff)))
     if not out:
-        raise ValueError("No rolling-origin splits could be created")
+        raise DataValidationError(
+            field=TIME_COL,
+            value=len(steps),
+            message=(
+                "No rolling-origin splits could be created with "
+                f"min_train_steps={min_train_steps} and test_window={test_window}."
+            ),
+        )
     return out
