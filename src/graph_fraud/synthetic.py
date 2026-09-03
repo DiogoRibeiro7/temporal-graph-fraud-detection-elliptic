@@ -29,7 +29,7 @@ def make_synthetic_transaction_graph(
     for i in range(n_features):
         nodes[f"x_{i + 1}"] = x[:, i]
 
-    edges = []
+    edges: list[tuple[int, int]] = []
     for source in tx_ids:
         n_targets = min(int(rng.poisson(1.5)), n_nodes - 1)
         targets = rng.choice(tx_ids[tx_ids != source], size=n_targets, replace=False)
@@ -37,5 +37,7 @@ def make_synthetic_transaction_graph(
 
     return (
         nodes.sort_values("time_step").reset_index(drop=True),
-        pd.DataFrame(edges, columns=["source", "target"]).drop_duplicates().reset_index(drop=True),
+        pd.DataFrame(edges, columns=["source", "target"])
+        .drop_duplicates()
+        .reset_index(drop=True),
     )
