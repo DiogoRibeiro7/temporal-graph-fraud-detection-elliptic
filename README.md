@@ -41,6 +41,22 @@ You need Kaggle credentials configured locally.
 - optional graph neural network scaffold
 - investigation workflow with risk tiers
 - governance and model-risk documentation
+- structured operational failures with DataExcept
+
+## Failure contract
+
+Operational failures at data and validation boundaries use
+[DataExcept](https://github.com/DiogoRibeiro7/DataExcept) rather than generic
+exceptions. In particular:
+
+- missing or unreadable raw files raise `DataLoadingError`;
+- malformed labels and invalid temporal datasets raise `DataValidationError`;
+- missing DataFrame fields raise `MissingColumnError`;
+- train/test temporal overlap raises `DataLeakageError`.
+
+Invalid programmer-supplied parameters, such as non-positive window sizes, remain
+ordinary Python `ValueError`s. This keeps configuration bugs distinct from data
+and pipeline failures.
 
 ## Repository structure
 
