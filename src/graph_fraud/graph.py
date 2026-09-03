@@ -14,7 +14,7 @@ def build_directed_graph(nodes: pd.DataFrame, edges: pd.DataFrame) -> nx.DiGraph
     """Build a directed graph from nodes and edges."""
     require_columns(nodes, [TX_ID_COL], frame_name="nodes")
     require_columns(edges, ["source", "target"], frame_name="edges")
-    graph = nx.DiGraph()
+    graph: nx.DiGraph = nx.DiGraph()
     graph.add_nodes_from(nodes[TX_ID_COL].tolist())
     graph.add_edges_from(edges[["source", "target"]].itertuples(index=False, name=None))
     return graph
