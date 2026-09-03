@@ -35,15 +35,18 @@ def require_columns(
 
 def map_class_label(value: object) -> float:
     """Map Elliptic labels to binary values."""
-    if pd.isna(value):
-        return np.nan
+    # Normalize through text rather than calling ``pd.isna`` on an arbitrary
+    # object. The pandas stubs intentionally restrict ``isna`` to supported
+    # scalar/container types, while raw CSV label values arrive here as
+    # ``object``. These spellings cover pandas/NumPy missing sentinels as well
+    # as the Elliptic dataset's explicit ``unknown`` label.
     text = str(value).strip().lower()
+    if text in {"unknown", "", "nan", "none", "<na>", "nat"}:
+        return np.nan
     if text in {"1", "illicit"}:
         return 1.0
     if text in {"2", "0", "licit"}:
         return 0.0
-    if text in {"unknown", "", "nan"}:
-        return np.nan
     raise DataValidationError(
         field="class",
         value=value,
