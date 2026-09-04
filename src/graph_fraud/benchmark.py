@@ -26,6 +26,11 @@ from graph_fraud.models import (
     make_random_forest_model,
     predict_risk,
 )
+from graph_fraud.policy import (
+    DEFAULT_INVESTIGATION_COSTS,
+    InvestigationCosts,
+    cost_threshold_policy_metrics,
+)
 from graph_fraud.validation import (
     assert_no_temporal_leakage,
     temporal_train_calibration_test_split,
@@ -90,12 +95,7 @@ def run_baseline_benchmark(
     random_state: int = RANDOM_SEED,
     specs: tuple[BenchmarkSpec, ...] = DEFAULT_BENCHMARK_SPECS,
 ) -> pd.DataFrame:
-    """Compare tabular and graph-augmented baselines on one temporal holdout.
-
-    The train/test partition is defined once on the original node table. Feature
-    frames are then joined back to those partitions by transaction ID, avoiding
-    positional alignment assumptions after graph feature construction.
-    """
+    """Compare tabular and graph-augmented baselines on one temporal holdout."""
     if investigator_capacity <= 0:
         raise ValueError("investigator_capacity must be positive")
     if not specs:
@@ -160,15 +160,16 @@ def run_calibrated_baseline_benchmark(
     calibration_time_steps: int = 2,
     test_time_steps: int = 2,
     investigator_capacity: int = 50,
+    investigation_costs: InvestigationCosts = DEFAULT_INVESTIGATION_COSTS,
     n_reliability_bins: int = 10,
     random_state: int = RANDOM_SEED,
     specs: tuple[BenchmarkSpec, ...] = DEFAULT_BENCHMARK_SPECS,
 ) -> pd.DataFrame:
     """Compare raw and calibrated probabilities on a strict temporal split.
 
-    Graph-derived label features are frozen at the training cutoff. The
-    calibration slice is used only to fit the probability map, and the final
-    test slice remains untouched until evaluation.
+    Graph-derived label features are frozen at the training cutoff. Raw and
+    calibrated probabilities are evaluated under identical cost and capacity
+    assumptions using a probability-sensitive investigation rule.
     """
     if investigator_capacity <= 0:
         raise ValueError("investigator_capacity must be positive")
@@ -229,6 +230,18 @@ def run_calibrated_baseline_benchmark(
             calibrated_test_scores,
             n_bins=n_reliability_bins,
         )
+        raw_policy = cost_threshold_policy_metrics(
+            y_test,
+            raw_test_scores,
+            capacity=investigator_capacity,
+            costs=investigation_costs,
+        )
+        calibrated_policy = cost_threshold_policy_metrics(
+            y_test,
+            calibrated_test_scores,
+            capacity=investigator_capacity,
+            costs=investigation_costs,
+        )
 
         rows.append(
             {
@@ -257,6 +270,17 @@ def run_calibrated_baseline_benchmark(
                     calibrated_test_scores,
                     k=k,
                 ),
+                "raw_policy_reviews": raw_policy["reviews"],
+                "calibrated_policy_reviews": calibrated_policy["reviews"],
+                "raw_policy_loss": raw_policy["total_expected_loss"],
+                "calibrated_policy_loss": calibrated_policy["total_expected_loss"],
+                "policy_loss_improvement": (
+                    raw_policy["total_expected_loss"]
+                    - calibrated_policy["total_expected_loss"]
+                ),
+                "raw_policy_recall": raw_policy["recall_at_capacity"],
+                "calibrated_policy_recall": calibrated_policy["recall_at_capacity"],
+                "cost_threshold": calibrated_policy["cost_threshold"],
             }
         )
 
