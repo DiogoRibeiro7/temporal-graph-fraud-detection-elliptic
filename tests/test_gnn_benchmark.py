@@ -104,4 +104,4 @@ def test_static_gnn_comparison_has_empirical_hurdle(synthetic_tables) -> None:
     }
     assert "pr_auc_delta" in hurdle.index
     assert "policy_loss_improvement" in hurdle.index
-    assert isinstance(hurdle["beats_best_baseline_pr_auc"], (bool, type(True)))
+    assert isinstance(hurdle["beats_best_baseline_pr_auc"], bool)
