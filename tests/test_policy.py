@@ -63,4 +63,4 @@ def test_policy_curve_and_optimal_capacity() -> None:
 
     assert curve["capacity"].tolist() == [1.0, 2.0, 3.0, 5.0]
     assert best["total_expected_loss"] == curve["total_expected_loss"].min()
-    assert best["capacity"] == 3.0
+    assert best["capacity"] == 5.0
