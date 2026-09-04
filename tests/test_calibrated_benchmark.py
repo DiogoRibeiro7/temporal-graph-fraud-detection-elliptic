@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from graph_fraud.benchmark import run_calibrated_baseline_benchmark
+from graph_fraud.policy import InvestigationCosts
 
 
 def test_calibrated_benchmark_matrix(synthetic_tables) -> None:
@@ -11,6 +12,10 @@ def test_calibrated_benchmark_matrix(synthetic_tables) -> None:
         calibration_time_steps=2,
         test_time_steps=2,
         investigator_capacity=10,
+        investigation_costs=InvestigationCosts(
+            review_cost=1.0,
+            missed_illicit_cost=10.0,
+        ),
         n_reliability_bins=5,
     )
 
@@ -26,6 +31,11 @@ def test_calibrated_benchmark_matrix(synthetic_tables) -> None:
     assert (result["calibrated_brier"] >= 0.0).all()
     assert (result["raw_ece"] >= 0.0).all()
     assert (result["calibrated_ece"] >= 0.0).all()
+    assert (result["raw_policy_reviews"] <= 10.0).all()
+    assert (result["calibrated_policy_reviews"] <= 10.0).all()
+    assert (result["raw_policy_loss"] >= 0.0).all()
+    assert (result["calibrated_policy_loss"] >= 0.0).all()
+    assert (result["cost_threshold"] == 0.1).all()
 
     tabular_features = result.loc[
         result["feature_set"] == "tabular",
