@@ -19,7 +19,11 @@ from graph_fraud.evaluation import (
     precision_at_k,
     recall_at_k,
 )
-from graph_fraud.features import build_graph_augmented_nodes, feature_columns, make_xy
+from graph_fraud.features import (
+    build_progressive_graph_augmented_nodes,
+    feature_columns,
+    make_xy,
+)
 from graph_fraud.models import (
     fit_model,
     make_logistic_model,
@@ -74,14 +78,15 @@ def _feature_frame(
     feature_set: str,
     cutoff: int,
 ) -> pd.DataFrame:
-    """Construct one benchmark feature frame using only information known by cutoff."""
+    """Construct benchmark features under the point-in-time information set."""
     if feature_set == "tabular":
         return nodes.copy()
     if feature_set == "graph_augmented":
-        return build_graph_augmented_nodes(
+        return build_progressive_graph_augmented_nodes(
             nodes,
             edges,
             max_known_time_step=cutoff,
+            training_cutoff=cutoff,
         )
     raise ValueError(f"Unknown feature_set: {feature_set!r}")
 
@@ -167,9 +172,9 @@ def run_calibrated_baseline_benchmark(
 ) -> pd.DataFrame:
     """Compare raw and calibrated probabilities on a strict temporal split.
 
-    Graph-derived label features are frozen at the training cutoff. Raw and
-    calibrated probabilities are evaluated under identical cost and capacity
-    assumptions using a probability-sensitive investigation rule.
+    Graph-derived labels are frozen at the training cutoff. Graph topology is
+    also point-in-time: training rows use the train-cutoff snapshot, while
+    calibration/test rows use only topology visible by their own time step.
     """
     if investigator_capacity <= 0:
         raise ValueError("investigator_capacity must be positive")
