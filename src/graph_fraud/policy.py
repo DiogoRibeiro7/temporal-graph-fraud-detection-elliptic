@@ -21,12 +21,15 @@ class InvestigationCosts:
             raise ValueError("missed_illicit_cost cannot be negative")
 
 
+DEFAULT_INVESTIGATION_COSTS = InvestigationCosts()
+
+
 def investigator_policy_metrics(
     y_true: pd.Series,
     y_score: pd.Series,
     *,
     capacity: int,
-    costs: InvestigationCosts = InvestigationCosts(),
+    costs: InvestigationCosts = DEFAULT_INVESTIGATION_COSTS,
 ) -> dict[str, float]:
     """Evaluate a top-capacity investigator policy.
 
@@ -77,7 +80,7 @@ def policy_curve(
     y_score: pd.Series,
     *,
     capacities: list[int],
-    costs: InvestigationCosts = InvestigationCosts(),
+    costs: InvestigationCosts = DEFAULT_INVESTIGATION_COSTS,
 ) -> pd.DataFrame:
     """Evaluate one score vector over multiple investigator capacities."""
     if not capacities:
@@ -102,9 +105,9 @@ def optimal_capacity(
     y_score: pd.Series,
     *,
     capacities: list[int],
-    costs: InvestigationCosts = InvestigationCosts(),
+    costs: InvestigationCosts = DEFAULT_INVESTIGATION_COSTS,
 ) -> pd.Series:
     """Return the tested capacity with minimum expected policy loss."""
     curve = policy_curve(y_true, y_score, capacities=capacities, costs=costs)
-    idx = curve["total_expected_loss"].idxmin()
-    return curve.loc[idx]
+    best_position = int(curve["total_expected_loss"].to_numpy().argmin())
+    return curve.iloc[best_position]
