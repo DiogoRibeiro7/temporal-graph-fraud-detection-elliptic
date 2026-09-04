@@ -16,6 +16,31 @@ def _import_torch() -> Any:
     return torch
 
 
+def mean_predecessor_features(x: Any, edge_index: Any) -> Any:
+    """Aggregate predecessor features by arithmetic mean.
+
+    ``edge_index[0]`` contains sources and ``edge_index[1]`` destinations, so
+    information flows only along the directed transaction edge.
+    """
+    torch = _import_torch()
+    src = edge_index[0].long()
+    dst = edge_index[1].long()
+    aggregated = torch.zeros_like(x)
+    aggregated.index_add_(0, dst, x[src])
+
+    degree = torch.zeros(
+        x.shape[0],
+        dtype=x.dtype,
+        device=x.device,
+    )
+    degree.index_add_(
+        0,
+        dst,
+        torch.ones(dst.shape[0], dtype=x.dtype, device=x.device),
+    )
+    return aggregated / degree.clamp_min(1.0).unsqueeze(1)
+
+
 class StaticGraphSAGE:
     """Two-layer mean-aggregation GraphSAGE classifier.
 
@@ -47,30 +72,11 @@ class StaticGraphSAGE:
                 self.linear2 = nn.Linear(hidden_dim * 2, output_dim)
                 self.dropout = nn.Dropout(dropout)
 
-            @staticmethod
-            def _mean_neighbours(x: Any, edge_index: Any) -> Any:
-                src = edge_index[0].long()
-                dst = edge_index[1].long()
-                aggregated = torch.zeros_like(x)
-                aggregated.index_add_(0, dst, x[src])
-
-                degree = torch.zeros(
-                    x.shape[0],
-                    dtype=x.dtype,
-                    device=x.device,
-                )
-                degree.index_add_(
-                    0,
-                    dst,
-                    torch.ones(dst.shape[0], dtype=x.dtype, device=x.device),
-                )
-                return aggregated / degree.clamp_min(1.0).unsqueeze(1)
-
             def forward(self, x: Any, edge_index: Any) -> Any:
-                neighbours = self._mean_neighbours(x, edge_index)
+                neighbours = mean_predecessor_features(x, edge_index)
                 h = torch.relu(self.linear1(torch.cat([x, neighbours], dim=1)))
                 h = self.dropout(h)
-                neighbours_h = self._mean_neighbours(h, edge_index)
+                neighbours_h = mean_predecessor_features(h, edge_index)
                 return self.linear2(torch.cat([h, neighbours_h], dim=1))
 
         self.model = _GraphSAGE()
