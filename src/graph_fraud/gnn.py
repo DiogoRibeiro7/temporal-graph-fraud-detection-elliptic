@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-def _import_torch() -> Any:
+def import_torch() -> Any:
     """Import torch or explain how to install it."""
     try:
         import torch
@@ -22,7 +22,7 @@ def mean_predecessor_features(x: Any, edge_index: Any) -> Any:
     ``edge_index[0]`` contains sources and ``edge_index[1]`` destinations, so
     information flows only along the directed transaction edge.
     """
-    torch = _import_torch()
+    torch = import_torch()
     src = edge_index[0].long()
     dst = edge_index[1].long()
     aggregated = torch.zeros_like(x)
@@ -62,7 +62,7 @@ class StaticGraphSAGE:
         if not 0.0 <= dropout < 1.0:
             raise ValueError("dropout must be in [0, 1)")
 
-        torch = _import_torch()
+        torch = import_torch()
         nn = torch.nn
 
         class _GraphSAGE(nn.Module):
@@ -84,3 +84,21 @@ class StaticGraphSAGE:
     def __call__(self, x: Any, edge_index: Any) -> Any:
         """Run a forward pass."""
         return self.model(x, edge_index)
+
+    def parameters(self) -> Any:
+        """Return trainable model parameters."""
+        return self.model.parameters()
+
+    def train(self) -> StaticGraphSAGE:
+        """Put the wrapped model in training mode."""
+        self.model.train()
+        return self
+
+    def eval(self) -> StaticGraphSAGE:
+        """Put the wrapped model in evaluation mode."""
+        self.model.eval()
+        return self
+
+    def state_dict(self) -> Any:
+        """Return the wrapped model state for reproducibility checks."""
+        return self.model.state_dict()
