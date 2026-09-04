@@ -42,6 +42,62 @@ def temporal_train_test_split(
     return train, test, int(cutoff)
 
 
+def temporal_train_calibration_test_split(
+    frame: pd.DataFrame,
+    *,
+    calibration_time_steps: int = 2,
+    test_time_steps: int = 2,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, int, int]:
+    """Create ordered train, calibration, and test partitions.
+
+    The calibration slice is strictly later than training and strictly earlier
+    than the final test slice. This prevents probability calibration from using
+    the same observations on which final performance is reported.
+    """
+    if calibration_time_steps <= 0:
+        raise ValueError("calibration_time_steps must be positive")
+    if test_time_steps <= 0:
+        raise ValueError("test_time_steps must be positive")
+
+    require_columns(frame, [TIME_COL, LABEL_COL], frame_name="frame")
+    labelled = frame[frame[LABEL_COL].notna()].copy()
+    steps = sorted(labelled[TIME_COL].astype(int).unique().tolist())
+    reserved_steps = calibration_time_steps + test_time_steps
+    if len(steps) <= reserved_steps:
+        raise DataValidationError(
+            field=TIME_COL,
+            value=len(steps),
+            message=(
+                "Not enough labelled time steps for train/calibration/test split: "
+                f"found {len(steps)}, need more than {reserved_steps}."
+            ),
+        )
+
+    train_cutoff = int(steps[-reserved_steps - 1])
+    calibration_cutoff = int(steps[-test_time_steps - 1])
+    train = labelled[labelled[TIME_COL] <= train_cutoff].copy()
+    calibration = labelled[
+        (labelled[TIME_COL] > train_cutoff)
+        & (labelled[TIME_COL] <= calibration_cutoff)
+    ].copy()
+    test = labelled[labelled[TIME_COL] > calibration_cutoff].copy()
+
+    if train.empty or calibration.empty or test.empty:
+        raise DataValidationError(
+            field=TIME_COL,
+            value={
+                "train_rows": len(train),
+                "calibration_rows": len(calibration),
+                "test_rows": len(test),
+            },
+            message="Temporal calibration split produced an empty partition.",
+        )
+
+    assert_no_temporal_leakage(train, calibration)
+    assert_no_temporal_leakage(calibration, test)
+    return train, calibration, test, train_cutoff, calibration_cutoff
+
+
 def assert_no_temporal_leakage(train: pd.DataFrame, test: pd.DataFrame) -> None:
     """Ensure all train observations are earlier than test observations."""
     require_columns(train, [TIME_COL], frame_name="train")
