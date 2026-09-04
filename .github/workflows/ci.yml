@@ -62,4 +62,4 @@ jobs:
         with:
           poetry-version: "2.1.3"
       - run: poetry install --with dev,gnn
-      - run: poetry run pytest -q tests/test_gnn.py
+      - run: poetry run pytest -q tests/test_gnn.py tests/test_gnn_benchmark.py
