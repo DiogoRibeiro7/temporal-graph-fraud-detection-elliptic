@@ -15,6 +15,10 @@ transaction features
 → analyst review workflow
 ```
 
+## Python support
+
+The project supports Python **3.11, 3.12, and 3.13**. Python 3.10 is no longer supported.
+
 ## Dataset
 
 The project expects the Kaggle dataset:
