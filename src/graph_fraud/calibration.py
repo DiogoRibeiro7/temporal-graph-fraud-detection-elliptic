@@ -87,9 +87,10 @@ def reliability_table(
             "score": y_score.astype(float).clip(0.0, 1.0),
         }
     )
+    bin_edges = np.linspace(0.0, 1.0, n_bins + 1).tolist()
     frame["bin"] = pd.cut(
         frame["score"],
-        bins=np.linspace(0.0, 1.0, n_bins + 1),
+        bins=bin_edges,
         include_lowest=True,
         labels=False,
     )
