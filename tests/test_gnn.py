@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-torch = pytest.importorskip("torch")
-
 from graph_fraud.gnn import StaticGraphSAGE, mean_predecessor_features
+
+torch = pytest.importorskip("torch")
 
 
 def test_mean_predecessor_features_respects_edge_direction() -> None:
